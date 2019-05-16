@@ -302,10 +302,10 @@ bool NativeWindowViews::PreHandleMSG(UINT message,
 
 void NativeWindowViews::HandleSizingEvent(WPARAM w_param, LPARAM l_param) {
   double aspect_ratio = GetAspectRatio();
-  // aspect_ratio width/height
-  if (aspect_ratio == 0) {
+  if (fabs(aspect_ratio) < 0.0001) {
     return;
   }
+
   RECT* window_rect;
   window_rect = reinterpret_cast<RECT*>(l_param);
   int width = window_rect->right - window_rect->left;
@@ -314,16 +314,23 @@ void NativeWindowViews::HandleSizingEvent(WPARAM w_param, LPARAM l_param) {
   double result_width = 0;
   double result_height = 0;
 
+  double temp_width = 0;
+  double temp_height = 0;
+
+  gfx::Size win_fit_size(width, height);
+  const gfx::Size min_fit_size = GetMinimumSize();
+  win_fit_size.SetToMax(min_fit_size);
+
   switch ((UINT)w_param) {
     case WMSZ_LEFT:
     case WMSZ_RIGHT:
-      result_width = width;
-      result_height = static_cast<double>(width) / aspect_ratio;
+      result_width = win_fit_size.width();
+      result_height = static_cast<double>(result_width) / aspect_ratio;
       break;
     case WMSZ_TOP:
     case WMSZ_BOTTOM:
-      result_width = static_cast<double>(height) * aspect_ratio;
-      result_height = height;
+      result_height = win_fit_size.height();
+      result_width = static_cast<double>(result_height) * aspect_ratio;
       break;
     case WMSZ_TOPLEFT:
     case WMSZ_TOPRIGHT:
@@ -331,20 +338,21 @@ void NativeWindowViews::HandleSizingEvent(WPARAM w_param, LPARAM l_param) {
     case WMSZ_BOTTOMRIGHT:
       result_width = static_cast<double>(height) * aspect_ratio;
       result_height = height;
+
+      temp_width = width;
+      temp_height = static_cast<double>(width) / aspect_ratio;
+
+      if (abs(temp_width * temp_height) > abs(result_width * result_height)) {
+        result_width = temp_width;
+        result_height = temp_height;
+      }
       break;
     default:
       break;
   }
-  gfx::Size ratio_fit_size(result_width, result_height);
-  gfx::Size min_fit_size = GetMinimumSize();
-  if (min_fit_size.width() >= result_width ||
-      min_fit_size.height() >= result_height) {
-    return;
-  } else {
-    // SetSize(ratio_fit_size, false);
-    window_rect->right = window_rect->left + result_width;
-    window_rect->bottom = window_rect->top + result_height;
-  }
+
+  window_rect->right = window_rect->left + result_width;
+  window_rect->bottom = window_rect->top + result_height;
 }
 
 void NativeWindowViews::HandleSizeEvent(WPARAM w_param, LPARAM l_param) {
