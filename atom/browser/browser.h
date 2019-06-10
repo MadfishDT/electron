@@ -128,8 +128,12 @@ class Browser : public WindowListObserver {
   // Returns the type name of the current user activity.
   std::string GetCurrentActivityType();
 
-  // Invalidates the current user activity.
+  // Invalidates an activity and marks it as no longer eligible for
+  // continuation
   void InvalidateCurrentActivity();
+
+  // Marks this activity object as inactive without invalidating it.
+  void ResignCurrentActivity();
 
   // Updates the current user activity
   void UpdateCurrentActivity(const std::string& type,
@@ -155,9 +159,9 @@ class Browser : public WindowListObserver {
                                const base::DictionaryValue& user_info);
 
   // Bounce the dock icon.
-  enum BounceType {
-    BOUNCE_CRITICAL = 0,
-    BOUNCE_INFORMATIONAL = 10,
+  enum class BounceType {
+    CRITICAL = 0,        // NSCriticalRequest
+    INFORMATIONAL = 10,  // NSInformationalRequest
   };
   int DockBounce(BounceType type);
   void DockCancelBounce(int request_id);
@@ -187,12 +191,17 @@ class Browser : public WindowListObserver {
   void SetAboutPanelOptions(const base::DictionaryValue& options);
 #endif
 
+#if defined(OS_MACOSX) || defined(OS_WIN)
+  void ShowEmojiPanel();
+#endif
+
 #if defined(OS_WIN)
   struct UserTask {
     base::FilePath program;
     base::string16 arguments;
     base::string16 title;
     base::string16 description;
+    base::FilePath working_dir;
     base::FilePath icon_path;
     int icon_index;
 
@@ -229,6 +238,8 @@ class Browser : public WindowListObserver {
   // Tell the application that application is activated with visible/invisible
   // windows.
   void Activate(bool has_visible_windows);
+
+  bool IsEmojiPanelSupported();
 
   // Tell the application the loading has been done.
   void WillFinishLaunching();

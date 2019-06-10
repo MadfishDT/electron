@@ -4,6 +4,10 @@
 
 #import "atom/browser/mac/atom_application.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "atom/browser/browser.h"
 #import "atom/browser/mac/atom_application_delegate.h"
 #include "atom/browser/mac/dict_util.h"
@@ -86,6 +90,13 @@ inline void dispatch_sync_main(dispatch_block_t block) {
   if (currentActivity_) {
     [currentActivity_ invalidate];
     currentActivity_.reset();
+  }
+}
+
+- (void)resignCurrentActivity {
+  if (@available(macOS 10.11, *)) {
+    if (currentActivity_)
+      [currentActivity_ resignCurrent];
   }
 }
 

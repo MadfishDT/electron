@@ -5,6 +5,9 @@
 #include "atom/browser/api/atom_api_system_preferences.h"
 
 #include <map>
+#include <memory>
+#include <string>
+#include <utility>
 
 #import <AVFoundation/AVFoundation.h>
 #import <Cocoa/Cocoa.h>
@@ -13,6 +16,7 @@
 
 #include "atom/browser/mac/atom_application.h"
 #include "atom/browser/mac/dict_util.h"
+#include "atom/browser/ui/cocoa/NSColor+Hex.h"
 #include "atom/common/native_mate_converters/gurl_converter.h"
 #include "atom/common/native_mate_converters/value_converter.h"
 #include "base/mac/scoped_cftyperef.h"
@@ -22,6 +26,7 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/threading/sequenced_task_runner_handle.h"
 #include "base/values.h"
+#include "native_mate/dictionary.h"
 #include "native_mate/object_template_builder.h"
 #include "net/base/mac/url_conversions.h"
 
@@ -61,11 +66,11 @@ struct Converter<NSAppearance*> {
       return v8::Null(isolate);
     }
 
-    if (val.name == NSAppearanceNameAqua) {
+    if ([val.name isEqualToString:NSAppearanceNameAqua]) {
       return mate::ConvertToV8(isolate, "light");
     }
     if (@available(macOS 10.14, *)) {
-      if (val.name == NSAppearanceNameDarkAqua) {
+      if ([val.name isEqualToString:NSAppearanceNameDarkAqua]) {
         return mate::ConvertToV8(isolate, "dark");
       }
     }
@@ -111,21 +116,6 @@ std::string ConvertAuthorizationStatus(AVAuthorizationStatusMac status) {
   }
 }
 
-// Convert color to RGBA value like "aabbccdd"
-std::string ToRGBA(NSColor* color) {
-  return base::StringPrintf(
-      "%02X%02X%02X%02X", (int)(color.redComponent * 0xFF),
-      (int)(color.greenComponent * 0xFF), (int)(color.blueComponent * 0xFF),
-      (int)(color.alphaComponent * 0xFF));
-}
-
-// Convert color to RGB hex value like "#ABCDEF"
-std::string ToRGBHex(NSColor* color) {
-  return base::StringPrintf("#%02X%02X%02X", (int)(color.redComponent * 0xFF),
-                            (int)(color.greenComponent * 0xFF),
-                            (int)(color.blueComponent * 0xFF));
-}
-
 }  // namespace
 
 void SystemPreferences::PostNotification(const std::string& name,
@@ -142,11 +132,15 @@ void SystemPreferences::PostNotification(const std::string& name,
             deliverImmediately:immediate];
 }
 
-int SystemPreferences::SubscribeNotification(
-    const std::string& name,
-    const NotificationCallback& callback) {
-  return DoSubscribeNotification(name, callback,
-                                 kNSDistributedNotificationCenter);
+v8::Local<v8::Promise> SystemPreferences::SubscribeNotification(
+    v8::Isolate* isolate,
+    const std::string& name) {
+  util::Promise promise(isolate);
+  v8::Local<v8::Promise> handle = promise.GetHandle();
+
+  DoSubscribeNotification(name, std::move(promise),
+                          kNSDistributedNotificationCenter);
+  return handle;
 }
 
 void SystemPreferences::UnsubscribeNotification(int request_id) {
@@ -162,10 +156,14 @@ void SystemPreferences::PostLocalNotification(
                       userInfo:DictionaryValueToNSDictionary(user_info)];
 }
 
-int SystemPreferences::SubscribeLocalNotification(
-    const std::string& name,
-    const NotificationCallback& callback) {
-  return DoSubscribeNotification(name, callback, kNSNotificationCenter);
+v8::Local<v8::Promise> SystemPreferences::SubscribeLocalNotification(
+    v8::Isolate* isolate,
+    const std::string& name) {
+  util::Promise promise(isolate);
+  v8::Local<v8::Promise> handle = promise.GetHandle();
+
+  DoSubscribeNotification(name, std::move(promise), kNSNotificationCenter);
+  return handle;
 }
 
 void SystemPreferences::UnsubscribeLocalNotification(int request_id) {
@@ -182,23 +180,27 @@ void SystemPreferences::PostWorkspaceNotification(
                       userInfo:DictionaryValueToNSDictionary(user_info)];
 }
 
-int SystemPreferences::SubscribeWorkspaceNotification(
-    const std::string& name,
-    const NotificationCallback& callback) {
-  return DoSubscribeNotification(name, callback,
-                                 kNSWorkspaceNotificationCenter);
+v8::Local<v8::Promise> SystemPreferences::SubscribeWorkspaceNotification(
+    v8::Isolate* isolate,
+    const std::string& name) {
+  util::Promise promise(isolate);
+  v8::Local<v8::Promise> handle = promise.GetHandle();
+
+  DoSubscribeNotification(name, std::move(promise),
+                          kNSWorkspaceNotificationCenter);
+  return handle;
 }
 
 void SystemPreferences::UnsubscribeWorkspaceNotification(int request_id) {
   DoUnsubscribeNotification(request_id, kNSWorkspaceNotificationCenter);
 }
 
-int SystemPreferences::DoSubscribeNotification(
-    const std::string& name,
-    const NotificationCallback& callback,
-    NotificationCenterKind kind) {
+void SystemPreferences::DoSubscribeNotification(const std::string& name,
+                                                util::Promise promise,
+                                                NotificationCenterKind kind) {
   int request_id = g_next_id++;
-  __block NotificationCallback copied_callback = callback;
+
+  __block util::Promise p = std::move(promise);
   NSNotificationCenter* center;
   switch (kind) {
     case kNSDistributedNotificationCenter:
@@ -219,18 +221,23 @@ int SystemPreferences::DoSubscribeNotification(
                   object:nil
                    queue:nil
               usingBlock:^(NSNotification* notification) {
-                std::unique_ptr<base::DictionaryValue> user_info =
+                mate::Dictionary dict =
+                    mate::Dictionary::CreateEmpty(p.isolate());
+                dict.Set("id", request_id);
+                dict.Set("event", base::SysNSStringToUTF8(notification.name));
+
+                std::unique_ptr<base::DictionaryValue> info =
                     NSDictionaryToDictionaryValue(notification.userInfo);
-                if (user_info) {
-                  copied_callback.Run(
-                      base::SysNSStringToUTF8(notification.name), *user_info);
+                if (info) {
+                  base::Value user_info =
+                      base::Value::FromUniquePtrValue(std::move(info));
+                  dict.Set("userInfo", user_info);
                 } else {
-                  copied_callback.Run(
-                      base::SysNSStringToUTF8(notification.name),
-                      base::DictionaryValue());
+                  base::Value empty_dict(base::Value::Type::DICTIONARY);
+                  dict.Set("userInfo", empty_dict);
                 }
+                std::move(p).Resolve(dict.GetHandle());
               }];
-  return request_id;
 }
 
 void SystemPreferences::DoUnsubscribeNotification(int request_id,
@@ -405,7 +412,7 @@ std::string SystemPreferences::GetAccentColor() {
   if (@available(macOS 10.14, *))
     sysColor = [NSColor controlAccentColor];
 
-  return ToRGBA(sysColor);
+  return base::SysNSStringToUTF8([sysColor RGBAValue]);
 }
 
 std::string SystemPreferences::GetSystemColor(const std::string& color,
@@ -434,7 +441,7 @@ std::string SystemPreferences::GetSystemColor(const std::string& color,
     return "";
   }
 
-  return ToRGBHex(sysColor);
+  return base::SysNSStringToUTF8([sysColor hexadecimalValue]);
 }
 
 bool SystemPreferences::CanPromptTouchID() {
@@ -449,14 +456,6 @@ bool SystemPreferences::CanPromptTouchID() {
     return true;
   }
   return false;
-}
-
-void OnTouchIDCompleted(util::Promise promise) {
-  promise.Resolve();
-}
-
-void OnTouchIDFailed(util::Promise promise, const std::string& reason) {
-  promise.RejectWithErrorMessage(reason);
 }
 
 v8::Local<v8::Promise> SystemPreferences::PromptTouchID(
@@ -486,16 +485,19 @@ v8::Local<v8::Promise> SystemPreferences::PromptTouchID(
               localizedReason:[NSString stringWithUTF8String:reason.c_str()]
                         reply:^(BOOL success, NSError* error) {
                           if (!success) {
+                            std::string err_msg = std::string(
+                                [error.localizedDescription UTF8String]);
+                            runner->PostTask(
+                                FROM_HERE,
+                                base::BindOnce(util::Promise::RejectPromise,
+                                               std::move(p),
+                                               std::move(err_msg)));
+                          } else {
                             runner->PostTask(
                                 FROM_HERE,
                                 base::BindOnce(
-                                    &OnTouchIDFailed, std::move(p),
-                                    std::string([error.localizedDescription
-                                                     UTF8String])));
-                          } else {
-                            runner->PostTask(FROM_HERE,
-                                             base::BindOnce(&OnTouchIDCompleted,
-                                                            std::move(p)));
+                                    util::Promise::ResolveEmptyPromise,
+                                    std::move(p)));
                           }
                         }];
   } else {
@@ -592,7 +594,7 @@ std::string SystemPreferences::GetColor(const std::string& color,
     return "";
   }
 
-  return ToRGBHex(sysColor);
+  return base::SysNSStringToUTF8([sysColor hexadecimalValue]);
 }
 
 std::string SystemPreferences::GetMediaAccessStatus(

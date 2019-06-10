@@ -4,8 +4,13 @@
 
 #include "atom/browser/ui/tray_icon_cocoa.h"
 
+#include <string>
+#include <vector>
+
+#include "atom/browser/mac/atom_application.h"
 #include "atom/browser/ui/cocoa/NSString+ANSI.h"
 #include "atom/browser/ui/cocoa/atom_menu_controller.h"
+#include "base/mac/sdk_forward_declarations.h"
 #include "base/strings/sys_string_conversions.h"
 #include "ui/display/screen.h"
 #include "ui/events/cocoa/cocoa_event_utils.h"
@@ -143,6 +148,10 @@ const CGFloat kVerticalTitleMargin = 2;
 }
 
 - (BOOL)isDarkMode {
+  if (@available(macOS 10.14, *)) {
+    return [[NSApplication sharedApplication].effectiveAppearance.name
+        isEqualToString:NSAppearanceNameDarkAqua];
+  }
   NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
   NSString* mode = [defaults stringForKey:@"AppleInterfaceStyle"];
   return mode && [mode isEqualToString:@"Dark"];
@@ -235,6 +244,10 @@ const CGFloat kVerticalTitleMargin = 2;
   [self updateDimensions];
 }
 
+- (NSString*)title {
+  return title_;
+}
+
 - (void)updateAttributedTitle {
   NSDictionary* attributes =
       @{NSFontAttributeName : [NSFont menuBarFontOfSize:0]};
@@ -322,9 +335,9 @@ const CGFloat kVerticalTitleMargin = 2;
 - (void)popUpContextMenu:(atom::AtomMenuModel*)menu_model {
   // Show a custom menu.
   if (menu_model) {
-    base::scoped_nsobject<AtomMenuController> menuController([
-        [AtomMenuController alloc] initWithModel:menu_model
-                           useDefaultAccelerator:NO]);
+    base::scoped_nsobject<AtomMenuController> menuController(
+        [[AtomMenuController alloc] initWithModel:menu_model
+                            useDefaultAccelerator:NO]);
     forceHighlight_ = YES;  // Should highlight when showing menu.
     [self setNeedsDisplay:YES];
     [statusItem_ popUpStatusItemMenu:[menuController menu]];
@@ -418,12 +431,13 @@ const CGFloat kVerticalTitleMargin = 2;
 }
 
 - (BOOL)shouldHighlight {
+  using HighlightMode = atom::TrayIcon::HighlightMode;
   switch (highlight_mode_) {
-    case atom::TrayIcon::HighlightMode::ALWAYS:
+    case HighlightMode::ALWAYS:
       return true;
-    case atom::TrayIcon::HighlightMode::NEVER:
+    case HighlightMode::NEVER:
       return false;
-    case atom::TrayIcon::HighlightMode::SELECTION:
+    case HighlightMode::SELECTION:
       BOOL isMenuOpen = menuController_ && [menuController_ isMenuOpen];
       return forceHighlight_ || inMouseEventSequence_ || isMenuOpen;
   }
@@ -457,6 +471,10 @@ void TrayIconCocoa::SetToolTip(const std::string& tool_tip) {
 
 void TrayIconCocoa::SetTitle(const std::string& title) {
   [status_item_view_ setTitle:base::SysUTF8ToNSString(title)];
+}
+
+std::string TrayIconCocoa::GetTitle() {
+  return base::SysNSStringToUTF8([status_item_view_ title]);
 }
 
 void TrayIconCocoa::SetHighlightMode(TrayIcon::HighlightMode mode) {
