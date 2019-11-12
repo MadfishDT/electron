@@ -11,6 +11,7 @@ const v8 = require('v8')
 
 const argv = require('yargs')
   .boolean('ci')
+  .array('files')
   .string('g').alias('g', 'grep')
   .boolean('i').alias('i', 'invert')
   .argv
@@ -19,7 +20,6 @@ let window = null
 
 // will be used by crash-reporter spec.
 process.port = 0
-process.crashServicePid = 0
 
 v8.setFlagsFromString('--expose_gc')
 app.commandLine.appendSwitch('js-flags', '--expose_gc')
@@ -35,9 +35,6 @@ process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = true
 // eslint-disable-next-line
 process.stdout
 
-// Adding a variable for sandbox process.env test validation
-process.env.sandboxmain = ''
-
 // Access console to reproduce #3482.
 // eslint-disable-next-line
 console
@@ -46,6 +43,10 @@ ipcMain.on('message', function (event, ...args) {
   event.sender.send('message', ...args)
 })
 
+ipcMain.handle('get-modules', () => Object.keys(electron))
+ipcMain.handle('get-temp-dir', () => app.getPath('temp'))
+ipcMain.handle('ping', () => null)
+
 // Set productName so getUploadedReports() uses the right directory in specs
 if (process.platform !== 'darwin') {
   crashReporter.productName = 'Zombies'
@@ -53,16 +54,15 @@ if (process.platform !== 'darwin') {
 
 // Write output to file if OUTPUT_TO_FILE is defined.
 const outputToFile = process.env.OUTPUT_TO_FILE
-const print = function (_, args) {
+const print = function (_, method, args) {
   const output = util.format.apply(null, args)
   if (outputToFile) {
     fs.appendFileSync(outputToFile, output + '\n')
   } else {
-    console.error(output)
+    console[method](output)
   }
 }
-ipcMain.on('console.log', print)
-ipcMain.on('console.error', print)
+ipcMain.on('console-call', print)
 
 ipcMain.on('process.exit', function (event, code) {
   process.exit(code)
@@ -77,20 +77,13 @@ ipcMain.on('echo', function (event, msg) {
 })
 
 global.setTimeoutPromisified = util.promisify(setTimeout)
+global.returnAPromise = (value) => new Promise((resolve) => setTimeout(() => resolve(value), 100))
 
-global.permissionChecks = {
-  allow: () => electron.session.defaultSession.setPermissionCheckHandler(null),
-  reject: () => electron.session.defaultSession.setPermissionCheckHandler(() => false)
-}
-
-global.isCi = !!argv.ci
-if (global.isCi) {
-  process.removeAllListeners('uncaughtException')
-  process.on('uncaughtException', function (error) {
-    console.error(error, error.stack)
-    process.exit(1)
-  })
-}
+process.removeAllListeners('uncaughtException')
+process.on('uncaughtException', function (error) {
+  console.error(error, error.stack)
+  process.exit(1)
+})
 
 global.nativeModulesEnabled = !process.env.ELECTRON_SKIP_NATIVE_MODULE_TESTS
 
@@ -129,7 +122,7 @@ app.on('ready', function () {
 
   window = new BrowserWindow({
     title: 'Electron Tests',
-    show: !global.isCi,
+    show: false,
     width: 800,
     height: 600,
     webPreferences: {
@@ -141,7 +134,8 @@ app.on('ready', function () {
   window.loadFile('static/index.html', {
     query: {
       grep: argv.grep,
-      invert: argv.invert ? 'true' : ''
+      invert: argv.invert ? 'true' : '',
+      files: argv.files ? argv.files.join(',') : undefined
     }
   })
   window.on('unresponsive', function () {
@@ -157,35 +151,9 @@ app.on('ready', function () {
     console.error('Renderer process crashed')
     process.exit(1)
   })
-
-  ipcMain.on('prevent-next-input-event', (event, key, id) => {
-    webContents.fromId(id).once('before-input-event', (event, input) => {
-      if (key === input.key) event.preventDefault()
-    })
-    event.returnValue = null
-  })
-
-  ipcMain.on('executeJavaScript', function (event, code) {
-    window.webContents.executeJavaScript(code).then((result) => {
-      window.webContents.send('executeJavaScript-promise-response', result)
-    }).catch((error) => {
-      window.webContents.send('executeJavaScript-promise-error', error)
-
-      if (error && error.name) {
-        window.webContents.send('executeJavaScript-promise-error-name', error.name)
-      }
-    })
-  })
-})
-
-ipcMain.on('handle-next-ipc-message-sync', function (event, returnValue) {
-  event.sender.once('ipc-message-sync', (event, channel, args) => {
-    event.returnValue = returnValue
-  })
 })
 
 for (const eventName of [
-  'desktop-capturer-get-sources',
   'remote-get-guest-web-contents'
 ]) {
   ipcMain.on(`handle-next-${eventName}`, function (event, returnValue) {
@@ -214,37 +182,8 @@ ipcMain.on('set-client-certificate-option', function (event, skip) {
   event.returnValue = 'done'
 })
 
-ipcMain.on('create-window-with-options-cycle', (event) => {
-  // This can't be done over remote since cycles are already
-  // nulled out at the IPC layer
-  const foo = {}
-  foo.bar = foo
-  foo.baz = {
-    hello: {
-      world: true
-    }
-  }
-  foo.baz2 = foo.baz
-  const window = new BrowserWindow({ show: false, foo: foo })
-  event.returnValue = window.id
-})
-
-ipcMain.on('prevent-next-new-window', (event, id) => {
-  webContents.fromId(id).once('new-window', event => event.preventDefault())
-})
-
-ipcMain.on('set-web-preferences-on-next-new-window', (event, id, key, value) => {
-  webContents.fromId(id).once('new-window', (event, url, frameName, disposition, options) => {
-    options.webPreferences[key] = value
-  })
-})
-
 ipcMain.on('prevent-next-will-attach-webview', (event) => {
   event.sender.once('will-attach-webview', event => event.preventDefault())
-})
-
-ipcMain.on('prevent-next-will-prevent-unload', (event, id) => {
-  webContents.fromId(id).once('will-prevent-unload', event => event.preventDefault())
 })
 
 ipcMain.on('disable-node-on-next-will-attach-webview', (event, id) => {
@@ -260,25 +199,6 @@ ipcMain.on('disable-preload-on-next-will-attach-webview', (event, id) => {
     delete webPreferences.preload
     delete webPreferences.preloadURL
   })
-})
-
-ipcMain.on('try-emit-web-contents-event', (event, id, eventName) => {
-  const consoleWarn = console.warn
-  const contents = webContents.fromId(id)
-  const listenerCountBefore = contents.listenerCount(eventName)
-
-  console.warn = (warningMessage) => {
-    console.warn = consoleWarn
-
-    const listenerCountAfter = contents.listenerCount(eventName)
-    event.returnValue = {
-      warningMessage,
-      listenerCountBefore,
-      listenerCountAfter
-    }
-  }
-
-  contents.emit(eventName, { sender: contents })
 })
 
 ipcMain.on('handle-uncaught-exception', (event, message) => {
@@ -297,11 +217,6 @@ ipcMain.on('handle-unhandled-rejection', (event, message) => {
   fs.readFile(__filename, () => {
     Promise.reject(new Error(message))
   })
-})
-
-ipcMain.on('crash-service-pid', (event, pid) => {
-  process.crashServicePid = pid
-  event.returnValue = null
 })
 
 // Suspend listeners until the next event and then restore them

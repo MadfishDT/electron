@@ -1,8 +1,8 @@
 import { expect } from 'chai'
 import { BrowserWindow } from 'electron'
-import { emittedOnce } from './events-helpers';
+import { emittedOnce } from './events-helpers'
 
-async function ensureWindowIsClosed(window: BrowserWindow | null) {
+async function ensureWindowIsClosed (window: BrowserWindow | null) {
   if (window && !window.isDestroyed()) {
     if (window.webContents && !window.webContents.isDestroyed()) {
       // If a window isn't destroyed already, and it has non-destroyed WebContents,
@@ -37,5 +37,11 @@ export const closeWindow = async (
         await ensureWindowIsClosed(win)
       }
     }
+  }
+}
+
+export async function closeAllWindows () {
+  for (const w of BrowserWindow.getAllWindows()) {
+    await closeWindow(w, { assertNotWindows: false })
   }
 }

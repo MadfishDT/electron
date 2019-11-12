@@ -27,33 +27,33 @@ Returns:
 
 * `event` Event
 
-### Event: 'inverted-color-scheme-changed' _Windows_
+### Event: 'inverted-color-scheme-changed' _Windows_ _Deprecated_
 
 Returns:
 
 * `event` Event
 * `invertedColorScheme` Boolean - `true` if an inverted color scheme (a high contrast color scheme with light text and dark backgrounds) is being used, `false` otherwise.
 
-### Event: 'high-contrast-color-scheme-changed' _Windows_
+**Deprecated:** Should use the new [`updated`](native-theme.md#event-updated) event on the `nativeTheme` module.
+
+### Event: 'high-contrast-color-scheme-changed' _Windows_ _Deprecated_
 
 Returns:
 
 * `event` Event
 * `highContrastColorScheme` Boolean - `true` if a high contrast theme is being used, `false` otherwise.
 
-### Event: 'appearance-changed' _macOS_
-
-Returns:
-
-* `newAppearance` String - Can be `dark` or `light`
-
-**NOTE:** This event is only emitted after you have called `startAppLevelAppearanceTrackingOS`
+**Deprecated:** Should use the new [`updated`](native-theme.md#event-updated) event on the `nativeTheme` module.
 
 ## Methods
 
-### `systemPreferences.isDarkMode()` _macOS_
+### `systemPreferences.isDarkMode()` _macOS_ _Windows_ _Deprecated_
 
 Returns `Boolean` - Whether the system is in Dark Mode.
+
+**Note:** On macOS 10.15 Catalina in order for this API to return the correct value when in the "automatic" dark mode setting you must either have `NSRequiresAquaSystemAppearance=false` in your `Info.plist` or be on Electron `>=7.0.0`.  See the [dark mode guide](../tutorial/mojave-dark-mode-guide.md) for more information.
+
+**Deprecated:** Should use the new [`nativeTheme.shouldUseDarkColors`](native-theme.md#nativethemeshouldusedarkcolors-readonly) API.
 
 ### `systemPreferences.isSwipeTrackingFromScrollEventsEnabled()` _macOS_
 
@@ -62,7 +62,7 @@ Returns `Boolean` - Whether the Swipe between pages setting is on.
 ### `systemPreferences.postNotification(event, userInfo[, deliverImmediately])` _macOS_
 
 * `event` String
-* `userInfo` Record<string, unknown>
+* `userInfo` Record<String, any>
 * `deliverImmediately` Boolean (optional) - `true` to post notifications immediately even when the subscribing app is inactive.
 
 Posts `event` as native notifications of macOS. The `userInfo` is an Object
@@ -71,7 +71,7 @@ that contains the user information dictionary sent along with the notification.
 ### `systemPreferences.postLocalNotification(event, userInfo)` _macOS_
 
 * `event` String
-* `userInfo` Record<string, unknown>
+* `userInfo` Record<String, any>
 
 Posts `event` as native notifications of macOS. The `userInfo` is an Object
 that contains the user information dictionary sent along with the notification.
@@ -79,7 +79,7 @@ that contains the user information dictionary sent along with the notification.
 ### `systemPreferences.postWorkspaceNotification(event, userInfo)` _macOS_
 
 * `event` String
-* `userInfo` Record<string, unknown>
+* `userInfo` Record<String, any>
 
 Posts `event` as native notifications of macOS. The `userInfo` is an Object
 that contains the user information dictionary sent along with the notification.
@@ -89,39 +89,19 @@ that contains the user information dictionary sent along with the notification.
 * `event` String
 * `callback` Function
   * `event` String
-  * `userInfo` Record<string, unknown>
+  * `userInfo` Record<String, unknown>
+  * `object` String
 
 Returns `Number` - The ID of this subscription
 
 Subscribes to native notifications of macOS, `callback` will be called with
 `callback(event, userInfo)` when the corresponding `event` happens. The
 `userInfo` is an Object that contains the user information dictionary sent
-along with the notification.
+along with the notification. The `object` is the sender of the notification,
+and only supports `NSString` values for now.
 
 The `id` of the subscriber is returned, which can be used to unsubscribe the
 `event`.
-
-Under the hood this API subscribes to `NSDistributedNotificationCenter`,
-example values of `event` are:
-
-* `AppleInterfaceThemeChangedNotification`
-* `AppleAquaColorVariantChanged`
-* `AppleColorPreferencesChangedNotification`
-* `AppleShowScrollBarsSettingChanged`
-
-**[Deprecated](modernization/promisification.md)**
-
-### `systemPreferences.subscribeNotification(event)` _macOS_
-
-* `event` String
-
-Returns `Promise<Object>` - Resolves with an object containing the following items:
-  * `id` Number - The ID of this subscription, which can be used to unsubscribe the
-`event`.
-  * `event` String
-  * `userInfo` Record<string, unknown>
-
-Subscribes to native notifications of macOS.
 
 Under the hood this API subscribes to `NSDistributedNotificationCenter`,
 example values of `event` are:
@@ -136,23 +116,10 @@ example values of `event` are:
 * `event` String
 * `callback` Function
   * `event` String
-  * `userInfo` Record<string, unknown>
+  * `userInfo` Record<String, unknown>
+  * `object` String
 
 Returns `Number` - The ID of this subscription
-
-Same as `subscribeNotification`, but uses `NSNotificationCenter` for local defaults.
-This is necessary for events such as `NSUserDefaultsDidChangeNotification`.
-
-**[Deprecated](modernization/promisification.md)**
-
-### `systemPreferences.subscribeLocalNotification(event)` _macOS_
-
-* `event` String
-
-Returns `Promise<Object>` - Resolves with an object containing the following items:
-  * `id` Number - The ID of this subscription
-  * `event` String
-  * `userInfo` Record<string, unknown>
 
 Same as `subscribeNotification`, but uses `NSNotificationCenter` for local defaults.
 This is necessary for events such as `NSUserDefaultsDidChangeNotification`.
@@ -162,46 +129,33 @@ This is necessary for events such as `NSUserDefaultsDidChangeNotification`.
 * `event` String
 * `callback` Function
   * `event` String
-  * `userInfo` Record<string, unknown>
-
-Same as `subscribeNotification`, but uses `NSWorkspace.sharedWorkspace.notificationCenter`.
-This is necessary for events such as `NSWorkspaceDidActivateApplicationNotification`.
-
-**[Deprecated](modernization/promisification.md)**
-
-### `systemPreferences.subscribeWorkspaceNotification(event)` _macOS_
-
-* `event` String
-
-Returns `Promise<Object>` - Resolves with an object containing the following items:
-  * `id` Number - The ID of this subscription
-  * `event` String
-  * `userInfo` Record<string, unknown>
+  * `userInfo` Record<String, unknown>
+  * `object` String
 
 Same as `subscribeNotification`, but uses `NSWorkspace.sharedWorkspace.notificationCenter`.
 This is necessary for events such as `NSWorkspaceDidActivateApplicationNotification`.
 
 ### `systemPreferences.unsubscribeNotification(id)` _macOS_
 
-* `id` Number
+* `id` Integer
 
 Removes the subscriber with `id`.
 
 ### `systemPreferences.unsubscribeLocalNotification(id)` _macOS_
 
-* `id` Number
+* `id` Integer
 
 Same as `unsubscribeNotification`, but removes the subscriber from `NSNotificationCenter`.
 
 ### `systemPreferences.unsubscribeWorkspaceNotification(id)` _macOS_
 
-* `id` Number
+* `id` Integer
 
 Same as `unsubscribeNotification`, but removes the subscriber from `NSWorkspace.sharedWorkspace.notificationCenter`.
 
 ### `systemPreferences.registerDefaults(defaults)` _macOS_
 
-* `defaults` Object - a dictionary of (`key: value`) user defaults
+* `defaults` Record<String, String | Boolean | Number> - a dictionary of (`key: value`) user defaults
 
 Add the specified defaults to your application's `NSUserDefaults`.
 
@@ -337,7 +291,7 @@ This API is only available on macOS 10.14 Mojave or newer.
     * `window-frame` - Window frame.
     * `window-text` - Text in windows.
   * On **macOS**
-    * `alternate-selected-control-text` - The text on a selected surface in a list or table.
+    * `alternate-selected-control-text` - The text on a selected surface in a list or table. _deprecated_
     * `control-background` - The background of a large interface element, such as a browser or table.
     * `control` - The surface of a control.
     * `control-text` -The text of a control that isn’t disabled.
@@ -356,7 +310,7 @@ This API is only available on macOS 10.14 Mojave or newer.
     * `selected-content-background` - The background for selected content in a key window or view.
     * `selected-control` - The surface of a selected control.
     * `selected-control-text` - The text of a selected control.
-    * `selected-menu-item` - The text of a selected menu.
+    * `selected-menu-item-text` - The text of a selected menu.
     * `selected-text-background` - The background of selected text.
     * `selected-text` - Selected text.
     * `separator` - A separator between different sections of content.
@@ -374,6 +328,8 @@ This API is only available on macOS 10.14 Mojave or newer.
 Returns `String` - The system color setting in RGB hexadecimal form (`#ABCDEF`).
 See the [Windows docs][windows-colors] and the [MacOS docs][macos-colors] for more details.
 
+The following colors are only available on macOS 10.14: `find-highlight`, `selected-content-background`, `separator`, `unemphasized-selected-content-background`, `unemphasized-selected-text-background`, and `unemphasized-selected-text`.
+
 [windows-colors]:https://msdn.microsoft.com/en-us/library/windows/desktop/ms724371(v=vs.85).aspx
 [macos-colors]:https://developer.apple.com/design/human-interface-guidelines/macos/visual-design/color#dynamic-system-colors
 
@@ -390,15 +346,21 @@ See the [Windows docs][windows-colors] and the [MacOS docs][macos-colors] for mo
   * `red`
   * `yellow`
 
+Returns `String` - The standard system color formatted as `#RRGGBBAA`.
+
 Returns one of several standard system colors that automatically adapt to vibrancy and changes in accessibility settings like 'Increase contrast' and 'Reduce transparency'. See [Apple Documentation](https://developer.apple.com/design/human-interface-guidelines/macos/visual-design/color#system-colors) for  more details.
 
-### `systemPreferences.isInvertedColorScheme()` _Windows_
+### `systemPreferences.isInvertedColorScheme()` _Windows_ _Deprecated_
 
 Returns `Boolean` - `true` if an inverted color scheme (a high contrast color scheme with light text and dark backgrounds) is active, `false` otherwise.
 
-### `systemPreferences.isHighContrastColorScheme()` _Windows_
+**Deprecated:** Should use the new [`nativeTheme.shouldUseInvertedColorScheme`](native-theme.md#nativethemeshoulduseinvertedcolorscheme-macos-windows-readonly) API.
+
+### `systemPreferences.isHighContrastColorScheme()` _macOS_ _Windows_ _Deprecated_
 
 Returns `Boolean` - `true` if a high contrast theme is active, `false` otherwise.
+
+**Depreacted:** Should use the new [`nativeTheme.shouldUseHighContrastColors`](native-theme.md#nativethemeshouldusehighcontrastcolors-macos-windows-readonly) API.
 
 ### `systemPreferences.getEffectiveAppearance()` _macOS_
 
@@ -412,10 +374,12 @@ Please note that until Electron is built targeting the 10.14 SDK, your applicati
 the interim in order for your application to inherit the OS preference you must set the
 `NSRequiresAquaSystemAppearance` key in your apps `Info.plist` to `false`.  If you are
 using `electron-packager` or `electron-forge` just set the `enableDarwinDarkMode`
-packager option to `true`.  See the [Electron Packager API](https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#darwindarkmodesupport)
+packager option to `true`.  See the [Electron Packager API](https://github.com/electron/electron-packager/blob/master/docs/api.md#darwindarkmodesupport)
 for more details.
 
-### `systemPreferences.getAppLevelAppearance()` _macOS_
+**[Deprecated](modernization/property-updates.md)**
+
+### `systemPreferences.getAppLevelAppearance()` _macOS_ _Deprecated_
 
 Returns `String` | `null` - Can be `dark`, `light` or `unknown`.
 
@@ -423,7 +387,9 @@ Gets the macOS appearance setting that you have declared you want for
 your application, maps to [NSApplication.appearance](https://developer.apple.com/documentation/appkit/nsapplication/2967170-appearance?language=objc).
 You can use the `setAppLevelAppearance` API to set this value.
 
-### `systemPreferences.setAppLevelAppearance(appearance)` _macOS_
+**[Deprecated](modernization/property-updates.md)**
+
+### `systemPreferences.setAppLevelAppearance(appearance)` _macOS_ _Deprecated_
 
 * `appearance` String | null - Can be `dark` or `light`
 
@@ -498,8 +464,25 @@ Returns an object with system animation settings.
 
 ### `systemPreferences.appLevelAppearance` _macOS_
 
-A `String` property that determines the macOS appearance setting for
+A `String` property that can be `dark`, `light` or `unknown`. It determines the macOS appearance setting for
 your application. This maps to values in: [NSApplication.appearance](https://developer.apple.com/documentation/appkit/nsapplication/2967170-appearance?language=objc). Setting this will override the
 system default as well as the value of `getEffectiveAppearance`.
 
 Possible values that can be set are `dark` and `light`, and possible return values are `dark`, `light`, and `unknown`.
+
+This property is only available on macOS 10.14 Mojave or newer.
+
+### `systemPreferences.effectiveAppearance` _macOS_ _Readonly_
+
+A `String` property that can be `dark`, `light` or `unknown`.
+
+Returns the macOS appearance setting that is currently applied to your application,
+maps to [NSApplication.effectiveAppearance](https://developer.apple.com/documentation/appkit/nsapplication/2967171-effectiveappearance?language=objc)
+
+Please note that until Electron is built targeting the 10.14 SDK, your application's
+`effectiveAppearance` will default to 'light' and won't inherit the OS preference. In
+the interim in order for your application to inherit the OS preference you must set the
+`NSRequiresAquaSystemAppearance` key in your apps `Info.plist` to `false`.  If you are
+using `electron-packager` or `electron-forge` just set the `enableDarwinDarkMode`
+packager option to `true`.  See the [Electron Packager API](https://github.com/electron/electron-packager/blob/master/docs/api.md#darwindarkmodesupport)
+for more details.

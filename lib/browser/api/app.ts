@@ -1,3 +1,4 @@
+import * as fs from 'fs'
 import * as path from 'path'
 
 import { deprecate, Menu } from 'electron'
@@ -36,7 +37,7 @@ Object.defineProperty(app, 'applicationMenu', {
   }
 })
 
-app.isPackaged = (() => {
+App.prototype.isPackaged = (() => {
   const execFile = path.basename(process.execPath).toLowerCase()
   if (process.platform === 'win32') {
     return execFile !== 'electron.exe'
@@ -51,10 +52,8 @@ app._setDefaultAppPaths = (packagePath) => {
   app.setAppPath(packagePath)
 
   // Add support for --user-data-dir=
-  const userDataDirFlag = '--user-data-dir='
-  const userDataArg = process.argv.find(arg => arg.startsWith(userDataDirFlag))
-  if (userDataArg) {
-    const userDataDir = userDataArg.substr(userDataDirFlag.length)
+  if (app.commandLine.hasSwitch('user-data-dir')) {
+    const userDataDir = app.commandLine.getSwitchValue('user-data-dir')
     if (path.isAbsolute(userDataDir)) app.setPath('userData', userDataDir)
   }
 }
@@ -68,10 +67,47 @@ if (process.platform === 'darwin') {
   app.dock!.getMenu = () => dockMenu
 }
 
+if (process.platform === 'linux') {
+  const patternVmRSS = /^VmRSS:\s*(\d+) kB$/m
+  const patternVmHWM = /^VmHWM:\s*(\d+) kB$/m
+
+  const getStatus = (pid: number) => {
+    try {
+      return fs.readFileSync(`/proc/${pid}/status`, 'utf8')
+    } catch {
+      return ''
+    }
+  }
+
+  const getEntry = (file: string, pattern: RegExp) => {
+    const match = file.match(pattern)
+    return match ? parseInt(match[1], 10) : 0
+  }
+
+  const getProcessMemoryInfo = (pid: number) => {
+    const file = getStatus(pid)
+
+    return {
+      workingSetSize: getEntry(file, patternVmRSS),
+      peakWorkingSetSize: getEntry(file, patternVmHWM)
+    }
+  }
+
+  const nativeFn = app.getAppMetrics
+  app.getAppMetrics = () => {
+    const metrics = nativeFn.call(app)
+    for (const metric of metrics) {
+      metric.memory = getProcessMemoryInfo(metric.pid)
+    }
+
+    return metrics
+  }
+}
+
 // Routes the events to webContents.
-const events = ['login', 'certificate-error', 'select-client-certificate']
+const events = ['certificate-error', 'select-client-certificate']
 for (const name of events) {
-  app.on(name as 'login', (event, webContents, ...args: any[]) => {
+  app.on(name as 'certificate-error', (event, webContents, ...args: any[]) => {
     webContents.emit(name, event, ...args)
   })
 }

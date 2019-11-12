@@ -2,7 +2,7 @@
 
 The Electron team is currently undergoing an initiative to convert callback-based functions in Electron to return Promises. During this transition period, both the callback and Promise-based versions of these functions will work correctly, and will both be documented.
 
-To enable deprecation warnings for these updated functions, use the `process.enablePromiseAPI` runtime flag.
+To enable deprecation warnings for these updated functions, use the [`process.enablePromiseAPIs` runtime flag](../process.md#processenablepromiseapis).
 
 When a majority of affected functions are migrated, this flag will be enabled by default and all developers will be able to see these deprecation warnings. At that time, the callback-based versions will also be removed from documentation. This document will be continuously updated as more functions are converted.
 
@@ -45,9 +45,6 @@ When a majority of affected functions are migrated, this flag will be enabled by
 - [ses.clearCache(callback)](https://github.com/electron/electron/blob/master/docs/api/session.md#clearCache)
 - [ses.getBlobData(identifier, callback)](https://github.com/electron/electron/blob/master/docs/api/session.md#getBlobData)
 - [shell.openExternal(url[, options, callback])](https://github.com/electron/electron/blob/master/docs/api/shell.md#openExternal)
-- [systemPreferences.subscribeNotification(event, callback)](https://github.com/electron/electron/blob/master/docs/api/system-preferences.md#subscribeNotification)
-- [systemPreferences.subscribeLocalNotification(event, callback)](https://github.com/electron/electron/blob/master/docs/api/system-preferences.md#subscribeLocalNotification)
-- [systemPreferences.subscribeWorkspaceNotification(event, callback)](https://github.com/electron/electron/blob/master/docs/api/system-preferences.md#subscribeWorkspaceNotification)
 - [webFrame.executeJavaScript(code[, userGesture, callback])](https://github.com/electron/electron/blob/master/docs/api/web-frame.md#executeJavaScript)
 - [webFrame.executeJavaScriptInIsolatedWorld(worldId, scripts[, userGesture, callback])](https://github.com/electron/electron/blob/master/docs/api/web-frame.md#executeJavaScriptInIsolatedWorld)
 - [webviewTag.capturePage([rect, ]callback)](https://github.com/electron/electron/blob/master/docs/api/webview-tag.md#capturePage)

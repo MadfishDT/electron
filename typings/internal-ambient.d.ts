@@ -4,20 +4,35 @@ declare namespace NodeJS {
   interface FeaturesBinding {
     isDesktopCapturerEnabled(): boolean;
     isOffscreenRenderingEnabled(): boolean;
+    isRemoteModuleEnabled(): boolean;
     isPDFViewerEnabled(): boolean;
     isRunAsNodeEnabled(): boolean;
     isFakeLocationProviderEnabled(): boolean;
     isViewApiEnabled(): boolean;
     isTtsEnabled(): boolean;
     isPrintingEnabled(): boolean;
+    isPictureInPictureEnabled(): boolean;
+    isExtensionsEnabled(): boolean;
     isComponentBuild(): boolean;
+  }
+
+  interface IpcBinding {
+    send(internal: boolean, channel: string, args: any[]): void;
+    sendSync(internal: boolean, channel: string, args: any[]): any;
+    sendToHost(channel: string, args: any[]): void;
+    sendTo(internal: boolean, sendToAll: boolean, webContentsId: number, channel: string, args: any[]): void;
+    invoke<T>(internal: boolean, channel: string, args: any[]): Promise<{ error: string, result: T }>;
   }
 
   interface V8UtilBinding {
     getHiddenValue<T>(obj: any, key: string): T;
     setHiddenValue<T>(obj: any, key: string, value: T): void;
+    deleteHiddenValue(obj: any, key: string): void;
     requestGarbageCollectionForTesting(): void;
+    createDoubleIDWeakMap(): any;
+    setRemoteCallbackFreer(fn: Function, frameId: number, contextId: String, id: number, sender: any): void
   }
+
   interface Process {
     /**
      * DO NOT USE DIRECTLY, USE process.electronBinding
@@ -25,9 +40,11 @@ declare namespace NodeJS {
     _linkedBinding(name: string): any;
     electronBinding(name: string): any;
     electronBinding(name: 'features'): FeaturesBinding;
+    electronBinding(name: 'ipc'): { ipc: IpcBinding };
     electronBinding(name: 'v8_util'): V8UtilBinding;
     electronBinding(name: 'app'): { app: Electron.App, App: Function };
     electronBinding(name: 'command_line'): Electron.CommandLine;
+    electronBinding(name: 'desktop_capturer'): { createDesktopCapturer(): ElectronInternal.DesktopCapturer };
     log: NodeJS.WriteStream['write'];
     activateUvLoop(): void;
 
@@ -37,6 +54,9 @@ declare namespace NodeJS {
 
     // Additional properties
     _firstFileName?: string;
+
+    helperExecPath: string;
+    isRemoteModuleEnabled: boolean;
   }
 }
 
@@ -49,11 +69,20 @@ declare module NodeJS  {
   }
 }
 
+interface ContextMenuItem {
+  id: number;
+  label: string;
+  type: 'normal' | 'separator' | 'subMenu' | 'checkbox';
+  checked: boolean;
+  enabled: boolean;
+  subItems: ContextMenuItem[];
+}
+
 declare interface Window {
   ELECTRON_DISABLE_SECURITY_WARNINGS?: boolean;
   ELECTRON_ENABLE_SECURITY_WARNINGS?: boolean;
   InspectorFrontendHost?: {
-    showContextMenuAtPoint: (x: number, y: number, items: any[]) => void
+    showContextMenuAtPoint: (x: number, y: number, items: ContextMenuItem[]) => void
   };
   DevToolsAPI?: {
     contextMenuItemSelected: (id: number) => void;

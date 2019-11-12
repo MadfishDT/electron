@@ -138,9 +138,8 @@ v8::Local<v8::Value> Converter<const char*>::ToV8(v8::Isolate* isolate,
       .ToLocalChecked();
 }
 
-v8::Local<v8::Value> Converter<base::StringPiece>::ToV8(
-    v8::Isolate* isolate,
-    const base::StringPiece& val) {
+v8::Local<v8::Value> Converter<base::StringPiece>::ToV8(v8::Isolate* isolate,
+                                                        base::StringPiece val) {
   return v8::String::NewFromUtf8(isolate, val.data(),
                                  v8::NewStringType::kNormal,
                                  static_cast<uint32_t>(val.length()))
@@ -160,7 +159,7 @@ bool Converter<std::string>::FromV8(v8::Isolate* isolate,
   v8::Local<v8::String> str = v8::Local<v8::String>::Cast(val);
   int length = str->Utf8Length(isolate);
   out->resize(length);
-  str->WriteUtf8(isolate, &(*out)[0], length, NULL,
+  str->WriteUtf8(isolate, &(*out)[0], length, nullptr,
                  v8::String::NO_NULL_TERMINATION);
   return true;
 }
@@ -260,7 +259,7 @@ bool Converter<v8::Local<v8::Value>>::FromV8(v8::Isolate* isolate,
 }
 
 v8::Local<v8::String> StringToSymbol(v8::Isolate* isolate,
-                                     const base::StringPiece& val) {
+                                     base::StringPiece val) {
   return v8::String::NewFromUtf8(isolate, val.data(),
                                  v8::NewStringType::kInternalized,
                                  static_cast<uint32_t>(val.length()))

@@ -162,10 +162,7 @@ When the guest page doesn't have node integration this script will still have
 access to all Node APIs, but global objects injected by Node will be deleted
 after this script has finished executing.
 
-**Note:** For security reasons, preload scripts can only be loaded from
-a subpath of the [app path](app.md#appgetapppath).
-
-**Note:** This option will be appear as `preloadURL` (not `preload`) in
+**Note:** This option will appear as `preloadURL` (not `preload`) in
 the `webPreferences` specified to the `will-attach-webview` event.
 
 ### `httpreferrer`
@@ -280,6 +277,11 @@ webview.addEventListener('dom-ready', () => {
   * `postData` ([UploadRawData[]](structures/upload-raw-data.md) | [UploadFile[]](structures/upload-file.md) | [UploadBlob[]](structures/upload-blob.md)) (optional)
   * `baseURLForDataURL` String (optional) - Base url (with trailing path separator) for files to be loaded by the data url. This is needed only if the specified `url` is a data url and needs to load other files.
 
+Returns `Promise<void>` - The promise will resolve when the page has finished loading
+(see [`did-finish-load`](webview-tag.md#event-did-finish-load)), and rejects
+if the page fails to load (see
+[`did-fail-load`](webview-tag.md#event-did-fail-load)).
+
 Loads the `url` in the webview, the `url` must contain the protocol prefix,
 e.g. the `http://` or `file://`.
 
@@ -379,7 +381,21 @@ Returns `String` - The user agent for guest page.
 
 * `css` String
 
-Injects CSS into the guest page.
+Returns `Promise<String>` - A promise that resolves with a key for the inserted
+CSS that can later be used to remove the CSS via
+`<webview>.removeInsertedCSS(key)`.
+
+Injects CSS into the current web page and returns a unique key for the inserted
+stylesheet.
+
+### `<webview>.removeInsertedCSS(key)`
+
+* `key` String
+
+Returns `Promise<void>` - Resolves if the removal was successful.
+
+Removes the inserted CSS from the current web page. The stylesheet is identified
+by its key, which is returned from `<webview>.insertCSS(css)`.
 
 ### `<webview>.executeJavaScript(code[, userGesture])`
 
@@ -490,6 +506,8 @@ Executes editing command `replaceMisspelling` in page.
 
 * `text` String
 
+Returns `Promise<void>`
+
 Inserts `text` to the focused element.
 
 ### `<webview>.findInPage(text[, options])`
@@ -531,6 +549,8 @@ Stops any `findInPage` request for the `webview` with the provided `action`.
     the web page. Default is `false`.
   * `deviceName` String (optional) - Set the printer device name to use. Default is `''`.
 
+Returns `Promise<void>`
+
 Prints `webview`'s web page. Same as `webContents.print([options])`.
 
 ### `<webview>.printToPDF(options)`
@@ -545,7 +565,7 @@ Prints `webview`'s web page. Same as `webContents.print([options])`.
   * `printSelectionOnly` Boolean (optional) - Whether to print selection only.
   * `landscape` Boolean (optional) - `true` for landscape, `false` for portrait.
 
-Returns `Promise<Buffer>` - Resolves with the generated PDF data.
+Returns `Promise<Uint8Array>` - Resolves with the generated PDF data.
 
 Prints `webview`'s web page as PDF, Same as `webContents.printToPDF(options)`.
 
@@ -562,6 +582,8 @@ Captures a snapshot of the page within `rect`. Omitting `rect` will capture the 
 * `channel` String
 * `...args` any[]
 
+Returns `Promise<void>`
+
 Send an asynchronous message to renderer process via `channel`, you can also
 send arbitrary arguments. The renderer process can handle the message by
 listening to the `channel` event with the [`ipcRenderer`](ipc-renderer.md) module.
@@ -571,11 +593,13 @@ examples.
 
 ### `<webview>.sendInputEvent(event)`
 
-* `event` Object
+* `event`  [MouseInputEvent](structures/mouse-input-event.md) | [MouseWheelInputEvent](structures/mouse-wheel-input-event.md) | [KeyboardInputEvent](structures/keyboard-input-event.md)
+
+Returns `Promise<void>`
 
 Sends an input `event` to the page.
 
-See [webContents.sendInputEvent](web-contents.md#contentssendinputeventevent)
+See [webContents.sendInputEvent](web-contents.md#contentssendinputeventinputevent)
 for detailed description of `event` object.
 
 ### `<webview>.setZoomFactor(factor)`
@@ -607,6 +631,8 @@ Returns `Number` - the current zoom level.
 * `minimumLevel` Number
 * `maximumLevel` Number
 
+Returns `Promise<void>`
+
 Sets the maximum and minimum pinch-to-zoom level.
 
 ### `<webview>.setLayoutZoomLevelLimits(minimumLevel, maximumLevel)`
@@ -614,19 +640,13 @@ Sets the maximum and minimum pinch-to-zoom level.
 * `minimumLevel` Number
 * `maximumLevel` Number
 
+Returns `Promise<void>`
+
 Sets the maximum and minimum layout-based (i.e. non-visual) zoom level.
 
 ### `<webview>.showDefinitionForSelection()` _macOS_
 
 Shows pop-up dictionary that searches the selected word on the page.
-
-### `<webview>.getWebContents()`
-
-Returns [`WebContents`](web-contents.md) - The web contents associated with
-this `webview`.
-
-It depends on the [`remote`](remote.md) module,
-it is therefore not available when this module is disabled.
 
 ### `<webview>.getWebContentsId()`
 
@@ -739,7 +759,7 @@ Returns:
   * `requestId` Integer
   * `activeMatchOrdinal` Integer - Position of the active match.
   * `matches` Integer - Number of Matches.
-  * `selectionArea` Object - Coordinates of first match region.
+  * `selectionArea` Rectangle - Coordinates of first match region.
   * `finalUpdate` Boolean
 
 Fired when a result is available for
@@ -763,7 +783,7 @@ Returns:
 * `frameName` String
 * `disposition` String - Can be `default`, `foreground-tab`, `background-tab`,
   `new-window`, `save-to-disk` and `other`.
-* `options` Object - The options which should be used for creating the new
+* `options` BrowserWindowConstructorOptions - The options which should be used for creating the new
   [`BrowserWindow`](browser-window.md).
 
 Fired when the guest page attempts to open a new browser window.
@@ -844,7 +864,7 @@ webview.addEventListener('close', () => {
 Returns:
 
 * `channel` String
-* `args` Array
+* `args` any[]
 
 Fired when the guest page has sent an asynchronous message to embedder page.
 

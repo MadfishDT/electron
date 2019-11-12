@@ -1,13 +1,10 @@
-const chai = require('chai')
-const dirtyChai = require('dirty-chai')
+const { expect } = require('chai')
 
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
+const http = require('http')
 const { shell } = require('electron')
-
-const { expect } = chai
-chai.use(dirtyChai)
 
 describe('shell module', () => {
   const fixtures = path.resolve(__dirname, 'fixtures')
@@ -20,38 +17,6 @@ describe('shell module', () => {
     icon: 'icon',
     iconIndex: 1
   }
-
-  describe('shell.openExternal()', () => {
-    let envVars = {}
-
-    beforeEach(function () {
-      envVars = {
-        display: process.env.DISPLAY,
-        de: process.env.DE,
-        browser: process.env.BROWSER
-      }
-    })
-
-    afterEach(() => {
-      // reset env vars to prevent side effects
-      if (process.platform === 'linux') {
-        process.env.DE = envVars.de
-        process.env.BROWSER = envVars.browser
-        process.env.DISPLAY = envVars.display
-      }
-    })
-
-    it('opens an external link', done => {
-      const url = 'http://www.example.com'
-      if (process.platform === 'linux') {
-        process.env.BROWSER = '/bin/true'
-        process.env.DE = 'generic'
-        process.env.DISPLAY = ''
-      }
-
-      shell.openExternal(url).then(() => done())
-    })
-  })
 
   describe('shell.readShortcutLink(shortcutPath)', () => {
     beforeEach(function () {

@@ -131,11 +131,12 @@ protocol.registerSchemesAsPrivileged([
 * `handler` Function
   * `request` Object
     * `url` String
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
   * `callback` Function
-    * `filePath` String (optional)
+    * `filePath` String | [FilePathWithHeaders](structures/file-path-with-headers.md) (optional)
 * `completion` Function (optional)
   * `error` Error
 
@@ -165,6 +166,7 @@ than protocols that follow the "generic URI syntax" like `file:`.
 * `handler` Function
   * `request` Object
     * `url` String
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
@@ -197,11 +199,12 @@ protocol.registerBufferProtocol('atom', (request, callback) => {
 * `handler` Function
   * `request` Object
     * `url` String
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
   * `callback` Function
-    * `data` String (optional)
+    * `data` (String | [StringProtocolResponse](structures/string-protocol-response.md)) (optional)
 * `completion` Function (optional)
   * `error` Error
 
@@ -217,18 +220,16 @@ should be called with either a `String` or an object that has the `data`,
 * `handler` Function
   * `request` Object
     * `url` String
-    * `headers` Object
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
   * `callback` Function
     * `redirectRequest` Object
       * `url` String
-      * `method` String
-      * `session` Object (optional)
-      * `uploadData` Object (optional)
-        * `contentType` String - MIME type of the content.
-        * `data` String - Content to be sent.
+      * `method` String (optional)
+      * `session` Session | null (optional)
+      * `uploadData` [ProtocolResponseUploadData](structures/protocol-response-upload-data.md) (optional)
 * `completion` Function (optional)
   * `error` Error
 
@@ -249,7 +250,7 @@ For POST requests the `uploadData` object must be provided.
 * `handler` Function
   * `request` Object
     * `url` String
-    * `headers` Object
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
@@ -325,6 +326,7 @@ already a handler for `scheme`.
 * `handler` Function
   * `request` Object
     * `url` String
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
@@ -342,11 +344,12 @@ which sends a file as a response.
 * `handler` Function
   * `request` Object
     * `url` String
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
   * `callback` Function
-    * `data` String (optional)
+    * `data` (String | [StringProtocolResponse](structures/string-protocol-response.md)) (optional)
 * `completion` Function (optional)
   * `error` Error
 
@@ -359,6 +362,7 @@ which sends a `String` as a response.
 * `handler` Function
   * `request` Object
     * `url` String
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
@@ -376,18 +380,16 @@ which sends a `Buffer` as a response.
 * `handler` Function
   * `request` Object
     * `url` String
-    * `headers` Object
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
   * `callback` Function
     * `redirectRequest` Object
       * `url` String
-      * `method` String
-      * `session` Object (optional)
-      * `uploadData` Object (optional)
-        * `contentType` String - MIME type of the content.
-        * `data` String - Content to be sent.
+      * `method` String (optional)
+      * `session` Session | null (optional)
+      * `uploadData` [ProtocolResponseUploadData](structures/protocol-response-upload-data.md) (optional)
 * `completion` Function (optional)
   * `error` Error
 
@@ -400,7 +402,7 @@ which sends a new HTTP request as a response.
 * `handler` Function
   * `request` Object
     * `url` String
-    * `headers` Object
+    * `headers` Record<String, String>
     * `referrer` String
     * `method` String
     * `uploadData` [UploadData[]](structures/upload-data.md)
